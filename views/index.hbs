@@ -1,0 +1,230 @@
+<html>
+  <head>
+    <title>Prv chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--
+      Color Palet:
+      https://www.color-hex.com/color-palette/7567
+    -->
+    <style>
+      body{
+          color: white;
+          background-color: #000;
+          font-family: Arial, Helvetica, sans-serif;
+      }
+      #msgBox{
+          width: 100%;
+          height: 90%;
+          overflow-y: scroll;
+      }
+      #sendBox{
+          width: 100%;
+          height: 10%;
+          background-color: #222;
+          border-radius: 20px;
+      }
+      #sendBox > input{
+          width: 88%;
+          height: -webkit-fill-available;
+          background: none;
+          color: white;
+      }
+      #sendBox > input::placeholder{
+        color: #fff;
+      }
+      #sendBox > button{
+          width: 10%;
+          height: -webkit-fill-available;
+          background-color: #333;
+          border-radius: 50%;
+          color:white;
+      }
+      #all{
+          width: 50vw;
+          height: 77vh;
+          border: #fff solid 4px;
+          /*background-color: #222;*/
+          border-radius: 20px;
+          margin: auto;
+      }
+      #appName{
+          height: 15vh;
+          width: 50vw;
+          margin: auto;
+          text-align: center;
+          font-size: 80px;
+      }
+      #ownButton{
+        margin: auto;
+      }
+      button,input{
+        border: none;
+        background: white;
+        border-radius: 4px;
+        padding: 0;
+
+      }
+      @media only screen and (max-width: 600px) {
+          #all{
+              width: 90vw;
+              height: 80vh;
+              font-size: 100%!important;
+          }
+          #sendBox > button, input{
+            font-size: 51%%;
+          }
+          #appName{
+            height: 10vh;
+            font-size: 38px;
+          }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="appName">PRVCHAT.</div>
+    <center><button type="button" id="ownButton" onclick="createRoom()">Create your own</button><button type="button" id="mainChat" onclick='location.href = "https://ciszek-test-nodejs.herokuapp.com/"'>Main chat</button></center>
+    <div id="all">
+      <div id='msgBox'></div>
+      <div id="sendBox">
+        <!--<input id="sendNick" type="text" placeholder="Nick"></input>-->
+        <input id="sendMessage" type="text" placeholder="Type you message"></input>
+        <button type="button" id="sendButton" onclick="sendMsg()">📨</button>
+    </div>
+    <script> 
+      function getUrlVars() { var vars = {}; var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) { vars[key] = value; }); return vars; }
+
+      var roomID=null;
+      var oldMsg="";
+      var nickAll="";
+
+
+         if(getUrlVars()['room'] != null){
+          document.getElementById("msgBox").innerHTML = "<b>Connect to the "+getUrlVars()['room']+" chat</b>";
+          roomID=getUrlVars()['room'];
+          document.getElementById("ownButton").disabled = true;
+        }else{
+          document.getElementById("msgBox").innerHTML = "<b>Connect to the main chat</b>";
+          roomID=0;
+        }
+        if(roomID==0){
+          document.querySelector("#mainChat").innerHTML = "Second chat";
+          document.querySelector("#mainChat").onclick = function(){location.href = "https://ciszek-test-nodejs.herokuapp.com/?room=1"}
+        }
+
+
+
+      /*if(document.cookie.length!=0){
+          document.getElementById("sendNick").value = document.cookie.split("=")[1];
+      }*/
+
+
+      function createRoom(){
+        fetch('https://prvchatdot.herokuapp.com/newroom')
+          .then(response => response.text())
+          .then(res => {
+              location.href = res;
+          });
+      }
+      function sendMsg() {
+          if(/*document.getElementById("sendNick").value =="" || */document.getElementById("sendMessage").value=="" || document.getElementById("sendMessage").value == oldMsg){
+            var msg = document.getElementById("msgBox").innerHTML;
+            document.getElementById("msgBox").innerHTML = msg+"<br><b>No message or nick or you try spam</b>";
+          }else{
+          document.getElementById("sendButton").disabled = true;
+          var msgToSend = document.getElementById("sendMessage").value;
+          var nickToSend = nickAll;//document.getElementById("sendNick").value;
+          fetch('https://prvchatdot.herokuapp.com/newmsg',{
+    
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+              roomID: roomID,
+              nick: nickToSend,
+              msg: msgToSend
+          })})
+          .then(response => response.text())
+          .then(res => {
+            //document.cookie = "name="+document.getElementById("sendNick").value;
+            if(res == "Error"){
+                  document.getElementById("msgBox").innerHTML = "<b>Error: Chat does not exist</b>";
+            }else{
+              var json = JSON.parse(res);
+              var newMsg="";
+              
+              json.forEach(function (a){
+                  const {date,nick,msg} = a;
+                  newMsg=`${newMsg}${date} -  <b>${nick}</b>: ${msg}<br/>`;
+              });
+              oldMsg = document.getElementById("sendMessage").value;
+              document.getElementById("msgBox").innerHTML = newMsg;
+              document.getElementById("sendMessage").value = "";
+              document.getElementById("sendButton").disabled = false;
+              
+            }
+        })
+      }};
+
+
+        var input = document.getElementById("sendMessage");
+        input.addEventListener("keyup", function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
+            sendMsg();
+          }
+        });
+
+
+
+
+
+
+
+      function getMsg(){
+        fetch('https://prvchatdot.herokuapp.com/getmsg?roomID='+roomID)
+        .then(response => response.text())
+        .then(res => {
+          if(res == "Error"){
+                document.getElementById("msgBox").innerHTML = "<b>Error: Chat does not exist</b>";
+                document.getElementById("sendButton").disabled = true;
+
+          }else{
+            var json = JSON.parse(res);
+            var msg="";
+            
+            json.forEach(function (a){
+                msg=msg+a.date+" -  <b>"+a.nick+"</b>: "+a.msg+"<br/>";
+            });
+            document.getElementById("msgBox").innerHTML = msg;
+          }
+      })};
+      if(document.cookie.length!=0){
+        console.log(document.cookie.split("=")[1])
+        nickAll=document.cookie.split("=")[1];
+      }else{
+         var newNick = prompt('Type you nick');
+         if(newNick != ""){
+            console.log(newNick)
+            document.cookie = "name="+newNick;
+            nickAll=newNick;
+         }else{
+            console.log(newNick)
+            alert("You didn't type anything")
+            window.location.reload();
+         }
+      }
+
+
+        getMsg();
+        setInterval(getMsg,5000);
+
+
+
+
+
+
+
+    </script>
+  </body>
+</html>
